@@ -4,15 +4,15 @@ Rustで作成したUSD↔JPYの為替レート変換のCLIアプリ
 
 ## 概要
 
-**usd-jpy-converter** は、最新のドル円為替レートを自動で取得し、  
+**ujcon** は、最新のドル円為替レートを自動で取得し、  
 - ドル→円
 - 円→ドル
 の相互変換結果を即時表示できるRust製CLIアプリです。
 
 コマンド例:  
 ```bash
-usd-jpy-converter -d 599     # 599ドルを現在レートで日本円に換算
-usd-jpy-converter -y 1000    # 1000円を現在レートで米ドルに換算
+ujcon -d 599     # 599ドルを現在レートで日本円に換算
+ujcon -y 1000    # 1000円を現在レートで米ドルに換算
 ```
 
 実行結果には  
@@ -45,7 +45,7 @@ cd usd-jpy-converter
 cargo build --release
 
 # ビルド後のバイナリは以下に生成されます
-# ./target/release/usd-jpy-converter
+# ./target/release/ujcon
 ```
 
 ## インストール方法
@@ -58,7 +58,7 @@ cargo build --release
 # リポジトリのルートディレクトリで実行
 cargo install --path .
 
-# これにより、バイナリが $HOME/.cargo/bin/usd-jpy-converter にインストールされます
+# これにより、バイナリが $HOME/.cargo/bin/ujcon にインストールされます
 # $HOME/.cargo/bin が PATH に含まれていることを確認してください
 ```
 
@@ -79,10 +79,10 @@ source ~/.bashrc
 ```bash
 # ユーザー用ディレクトリにコピー
 mkdir -p $HOME/.local/bin
-cp target/release/usd-jpy-converter $HOME/.local/bin/
+cp target/release/ujcon $HOME/.local/bin/
 
 # または、システム全体で使用する場合（sudoが必要）
-sudo cp target/release/usd-jpy-converter /usr/local/bin/
+sudo cp target/release/ujcon /usr/local/bin/
 
 # $HOME/.local/bin をPATHに追加（まだの場合）
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
@@ -100,27 +100,27 @@ source ~/.bashrc
 
 ## 使い方
 
-インストール後、ターミナルのどこからでも `usd-jpy-converter` コマンドが使用できます。
+インストール後、ターミナルのどこからでも `ujcon` コマンドが使用できます。
 
 ### 基本的な使い方
 
 ```bash
 # ヘルプを表示
-usd-jpy-converter --help
+ujcon --help
 
 # ドルを円に変換
-usd-jpy-converter -d 100
-usd-jpy-converter --dollar 100
+ujcon -d 100
+ujcon --dollar 100
 
 # 円をドルに変換
-usd-jpy-converter -y 15000
-usd-jpy-converter --yen 15000
+ujcon -y 15000
+ujcon --yen 15000
 ```
 
 ### 実行例
 
 ```bash
-$ usd-jpy-converter -d 100
+$ ujcon -d 100
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 USD/JPY 為替レート変換
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -130,7 +130,7 @@ $ usd-jpy-converter -d 100
 💵 100 USD → 💴 14950.00 JPY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-$ usd-jpy-converter -y 10000
+$ ujcon -y 10000
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 USD/JPY 為替レート変換
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -143,11 +143,11 @@ $ usd-jpy-converter -y 10000
 
 ## トラブルシューティング
 
-### "command not found: usd-jpy-converter"と表示される場合
+### "command not found: ujcon"と表示される場合
 
 - PATHが正しく設定されているか確認：`echo $PATH`
 - シェルを再起動または `source ~/.bashrc` を実行
-- バイナリの実行権限を確認：`chmod +x $HOME/.cargo/bin/usd-jpy-converter`
+- バイナリの実行権限を確認：`chmod +x $HOME/.cargo/bin/ujcon`
 
 ### API接続エラーが発生する場合
 
