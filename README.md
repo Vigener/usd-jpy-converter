@@ -184,7 +184,7 @@ Could not find directory of OpenSSL installation
 WSL2 Ubuntu や Linux 環境の場合、OpenSSL の開発パッケージと pkg-config をインストールしてください：
 
 ```bash
-# Ubuntu / Debian / WSL2 Ubuntu
+# Ubuntu / Debian
 sudo apt update
 sudo apt install pkg-config libssl-dev
 
