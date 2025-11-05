@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::error::Error;
 
 #[derive(Parser, Debug)]
-#[command(name = "cmd")]
+#[command(name = "usd-jpy-converter")]
 #[command(about = "USD↔JPY為替レート変換ツール", long_about = None)]
 struct Args {
     /// ドルを円に変換
@@ -89,8 +89,8 @@ fn main() {
     if args.dollar.is_none() && args.yen.is_none() {
         eprintln!("エラー: -d または -y オプションで金額を指定してください");
         eprintln!("使用例:");
-        eprintln!("  cmd -d 100    # 100ドルを円に変換");
-        eprintln!("  cmd -y 10000  # 10000円をドルに変換");
+        eprintln!("  usd-jpy-converter -d 100    # 100ドルを円に変換");
+        eprintln!("  usd-jpy-converter -y 10000  # 10000円をドルに変換");
         std::process::exit(1);
     }
 
