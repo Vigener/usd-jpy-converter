@@ -3,11 +3,17 @@ use clap::Parser;
 use serde::Deserialize;
 use std::error::Error;
 
+#[derive(Debug)]
+enum AmountInput {
+    Single(f64),
+    Range(f64, f64),
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "ujcon")]
 #[command(about = "USD↔JPY為替レート変換ツール", long_about = None)]
 struct Args {
-    /// ドルを円に変換
+    /// ドルを円に変換（単一値またはレンジ: 例: 100 または 100-200）
     #[arg(
         short = 'd',
         long = "dollar",
@@ -15,9 +21,9 @@ struct Args {
         value_name = "AMOUNT",
         conflicts_with = "yen"
     )]
-    dollar: Option<f64>,
+    dollar: Option<String>,
 
-    /// 円をドルに変換
+    /// 円をドルに変換（単一値またはレンジ: 例: 10000 または 10000-20000）
     #[arg(
         short = 'y',
         long = "yen",
@@ -25,7 +31,7 @@ struct Args {
         value_name = "AMOUNT",
         conflicts_with = "dollar"
     )]
-    yen: Option<f64>,
+    yen: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -44,6 +50,13 @@ struct ConversionRates {
 }
 
 fn get_exchange_rate() -> Result<f64, Box<dyn Error>> {
+    // テスト用: MOCK_RATE環境変数が設定されている場合はそれを使用
+    if let Ok(mock_rate) = std::env::var("MOCK_RATE") {
+        if let Ok(rate) = mock_rate.parse::<f64>() {
+            return Ok(rate);
+        }
+    }
+    
     // 複数のAPIエンドポイントを試す
     let urls = vec![
         "https://api.exchangerate-api.com/v4/latest/USD",
@@ -84,6 +97,43 @@ fn try_get_rate(url: &str) -> Result<f64, Box<dyn Error>> {
     Ok(rate)
 }
 
+fn parse_amount(input: &str) -> Result<AmountInput, String> {
+    let trimmed = input.trim();
+    
+    // 負の値のチェック（先頭がマイナスの場合）
+    if trimmed.starts_with('-') {
+        return Err("金額は正の数である必要があります".to_string());
+    }
+    
+    // まず単一値として試す
+    if let Ok(value) = trimmed.parse::<f64>() {
+        return Ok(AmountInput::Single(value));
+    }
+    
+    // レンジ形式かどうかチェック: 数字-数字 の形式を探す
+    let parts: Vec<&str> = trimmed.split('-').collect();
+    
+    if parts.len() == 2 {
+        // レンジ形式: "100-200" のようなフォーマット
+        let start = parts[0].trim().parse::<f64>()
+            .map_err(|_| format!("開始値 '{}' を数値としてパースできません", parts[0]))?;
+        let end = parts[1].trim().parse::<f64>()
+            .map_err(|_| format!("終了値 '{}' を数値としてパースできません", parts[1]))?;
+        
+        if start < 0.0 || end < 0.0 {
+            return Err("金額は正の数である必要があります".to_string());
+        }
+        
+        if start >= end {
+            return Err("開始値は終了値より小さい必要があります".to_string());
+        }
+        
+        Ok(AmountInput::Range(start, end))
+    } else {
+        Err(format!("値 '{}' を数値またはレンジとしてパースできません。例: 100 または 100-200", trimmed))
+    }
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -115,13 +165,149 @@ fn main() {
     println!("🕐 取得時刻: {}", timestamp);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    if let Some(dollar_amount) = args.dollar {
-        let yen_result = dollar_amount * rate;
-        println!("💵 {} USD → 💴 {:.2} JPY", dollar_amount, yen_result);
-    } else if let Some(yen_amount) = args.yen {
-        let dollar_result = yen_amount / rate;
-        println!("💴 {} JPY → 💵 {:.2} USD", yen_amount, dollar_result);
+    if let Some(dollar_input) = args.dollar {
+        match parse_amount(&dollar_input) {
+            Ok(AmountInput::Single(dollar_amount)) => {
+                let yen_result = dollar_amount * rate;
+                println!("💵 {} USD → 💴 {:.2} JPY", dollar_amount, yen_result);
+            }
+            Ok(AmountInput::Range(start, end)) => {
+                let yen_start = start * rate;
+                let yen_end = end * rate;
+                println!("💵 {} - {} USD → 💴 {:.2} - {:.2} JPY", start, end, yen_start, yen_end);
+            }
+            Err(e) => {
+                eprintln!("エラー: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else if let Some(yen_input) = args.yen {
+        match parse_amount(&yen_input) {
+            Ok(AmountInput::Single(yen_amount)) => {
+                let dollar_result = yen_amount / rate;
+                println!("💴 {} JPY → 💵 {:.2} USD", yen_amount, dollar_result);
+            }
+            Ok(AmountInput::Range(start, end)) => {
+                let dollar_start = start / rate;
+                let dollar_end = end / rate;
+                println!("💴 {} - {} JPY → 💵 {:.2} - {:.2} USD", start, end, dollar_start, dollar_end);
+            }
+            Err(e) => {
+                eprintln!("エラー: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_single_value() {
+        match parse_amount("100") {
+            Ok(AmountInput::Single(val)) => assert_eq!(val, 100.0),
+            _ => panic!("Expected Single value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_single_value_with_decimal() {
+        match parse_amount("100.50") {
+            Ok(AmountInput::Single(val)) => assert_eq!(val, 100.50),
+            _ => panic!("Expected Single value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_range() {
+        match parse_amount("100-200") {
+            Ok(AmountInput::Range(start, end)) => {
+                assert_eq!(start, 100.0);
+                assert_eq!(end, 200.0);
+            }
+            _ => panic!("Expected Range value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_range_with_spaces() {
+        match parse_amount("100 - 200") {
+            Ok(AmountInput::Range(start, end)) => {
+                assert_eq!(start, 100.0);
+                assert_eq!(end, 200.0);
+            }
+            _ => panic!("Expected Range value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_range_decimal() {
+        match parse_amount("599.5-699.99") {
+            Ok(AmountInput::Range(start, end)) => {
+                assert_eq!(start, 599.5);
+                assert_eq!(end, 699.99);
+            }
+            _ => panic!("Expected Range value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_range_start_greater() {
+        match parse_amount("200-100") {
+            Err(msg) => assert!(msg.contains("開始値は終了値より小さい")),
+            _ => panic!("Expected error for invalid range"),
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_range_equal() {
+        match parse_amount("100-100") {
+            Err(msg) => assert!(msg.contains("開始値は終了値より小さい")),
+            _ => panic!("Expected error for equal values"),
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_input() {
+        match parse_amount("abc") {
+            Err(msg) => assert!(msg.contains("パースできません")),
+            _ => panic!("Expected error for invalid input"),
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_range_format() {
+        match parse_amount("100-200-300") {
+            Err(msg) => assert!(msg.contains("パースできません")),
+            _ => panic!("Expected error for invalid range format"),
+        }
+    }
+
+    #[test]
+    fn test_parse_negative_single_value() {
+        match parse_amount("-100") {
+            Err(msg) => assert!(msg.contains("正の数")),
+            _ => panic!("Expected error for negative value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_negative_in_range() {
+        match parse_amount("-100-200") {
+            Err(msg) => assert!(msg.contains("正の数")),
+            _ => panic!("Expected error for negative value in range"),
+        }
+    }
+
+    #[test]
+    fn test_parse_zero_value() {
+        match parse_amount("0") {
+            Ok(AmountInput::Single(val)) => assert_eq!(val, 0.0),
+            _ => panic!("Expected Single value for zero"),
+        }
+    }
 }
