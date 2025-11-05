@@ -34,6 +34,28 @@ ujcon -y 1000    # 1000円を現在レートで米ドルに換算
 - Rust 1.70以降（ビルド時）
 - インターネット接続（リアルタイムレート取得のため）
 
+### WSL2 Ubuntu / Linux でのビルドに必要な依存関係
+
+このプロジェクトは `reqwest` クレートを使用しており、内部的に OpenSSL に依存しています。WSL2 Ubuntu や Linux 環境でビルドする場合は、以下のシステムパッケージを事前にインストールする必要があります：
+
+```bash
+# Ubuntu / Debian の場合
+sudo apt update
+sudo apt install pkg-config libssl-dev
+
+# Fedora / CentOS / RHEL の場合
+sudo dnf install pkg-config openssl-devel
+
+# Arch Linux の場合
+sudo pacman -S pkg-config openssl
+```
+
+これらのパッケージがインストールされていないと、ビルド時に以下のようなエラーが発生します：
+```
+error: failed to run custom build command for `openssl-sys`
+Could not find directory of OpenSSL installation
+```
+
 ## ビルド方法
 
 ```bash
@@ -148,6 +170,29 @@ $ ujcon -y 10000
 ```
 
 ## トラブルシューティング
+
+### ビルドエラー: `openssl-sys` のビルドに失敗する場合
+
+**症状**:
+```
+error: failed to run custom build command for `openssl-sys v0.9.110`
+Could not find directory of OpenSSL installation
+```
+
+**解決方法**:
+
+WSL2 Ubuntu や Linux 環境の場合、OpenSSL の開発パッケージと pkg-config をインストールしてください：
+
+```bash
+# Ubuntu / Debian
+sudo apt update
+sudo apt install pkg-config libssl-dev
+
+# インストール後、再度ビルドを実行
+cargo build --release
+```
+
+他のディストリビューションの場合は、上記の「必要な依存関係」セクションを参照してください。
 
 ### "command not found: ujcon"と表示される場合
 
