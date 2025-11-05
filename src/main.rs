@@ -98,18 +98,31 @@ fn try_get_rate(url: &str) -> Result<f64, Box<dyn Error>> {
 }
 
 fn parse_amount(input: &str) -> Result<AmountInput, String> {
-    // ハイフンでレンジかどうか判定
-    if input.contains('-') {
+    let trimmed = input.trim();
+    
+    // 負の値のチェック（先頭がマイナスの場合）
+    if trimmed.starts_with('-') {
+        return Err("金額は正の数である必要があります".to_string());
+    }
+    
+    // まず単一値として試す
+    if let Ok(value) = trimmed.parse::<f64>() {
+        return Ok(AmountInput::Single(value));
+    }
+    
+    // レンジ形式かどうかチェック: 数字-数字 の形式を探す
+    let parts: Vec<&str> = trimmed.split('-').collect();
+    
+    if parts.len() == 2 {
         // レンジ形式: "100-200" のようなフォーマット
-        let parts: Vec<&str> = input.split('-').collect();
-        if parts.len() != 2 {
-            return Err("レンジ形式が正しくありません。例: 100-200".to_string());
-        }
-        
         let start = parts[0].trim().parse::<f64>()
             .map_err(|_| format!("開始値 '{}' を数値としてパースできません", parts[0]))?;
         let end = parts[1].trim().parse::<f64>()
             .map_err(|_| format!("終了値 '{}' を数値としてパースできません", parts[1]))?;
+        
+        if start < 0.0 || end < 0.0 {
+            return Err("金額は正の数である必要があります".to_string());
+        }
         
         if start >= end {
             return Err("開始値は終了値より小さい必要があります".to_string());
@@ -117,10 +130,7 @@ fn parse_amount(input: &str) -> Result<AmountInput, String> {
         
         Ok(AmountInput::Range(start, end))
     } else {
-        // 単一値
-        let value = input.trim().parse::<f64>()
-            .map_err(|_| format!("値 '{}' を数値としてパースできません", input))?;
-        Ok(AmountInput::Single(value))
+        Err(format!("値 '{}' を数値またはレンジとしてパースできません。例: 100 または 100-200", trimmed))
     }
 }
 
@@ -264,7 +274,7 @@ mod tests {
     #[test]
     fn test_parse_invalid_input() {
         match parse_amount("abc") {
-            Err(msg) => assert!(msg.contains("数値としてパースできません")),
+            Err(msg) => assert!(msg.contains("パースできません")),
             _ => panic!("Expected error for invalid input"),
         }
     }
@@ -272,8 +282,32 @@ mod tests {
     #[test]
     fn test_parse_invalid_range_format() {
         match parse_amount("100-200-300") {
-            Err(msg) => assert!(msg.contains("レンジ形式が正しくありません")),
+            Err(msg) => assert!(msg.contains("パースできません")),
             _ => panic!("Expected error for invalid range format"),
+        }
+    }
+
+    #[test]
+    fn test_parse_negative_single_value() {
+        match parse_amount("-100") {
+            Err(msg) => assert!(msg.contains("正の数")),
+            _ => panic!("Expected error for negative value"),
+        }
+    }
+
+    #[test]
+    fn test_parse_negative_in_range() {
+        match parse_amount("-100-200") {
+            Err(msg) => assert!(msg.contains("正の数")),
+            _ => panic!("Expected error for negative value in range"),
+        }
+    }
+
+    #[test]
+    fn test_parse_zero_value() {
+        match parse_amount("0") {
+            Ok(AmountInput::Single(val)) => assert_eq!(val, 0.0),
+            _ => panic!("Expected Single value for zero"),
         }
     }
 }
