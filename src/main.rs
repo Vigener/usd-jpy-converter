@@ -1,5 +1,5 @@
-use clap::Parser;
 use chrono::Local;
+use clap::Parser;
 use serde::Deserialize;
 use std::error::Error;
 
@@ -8,17 +8,31 @@ use std::error::Error;
 #[command(about = "USD↔JPY為替レート変換ツール", long_about = None)]
 struct Args {
     /// ドルを円に変換
-    #[arg(short = 'd', long = "dollar", value_name = "AMOUNT", conflicts_with = "yen")]
+    #[arg(
+        short = 'd',
+        long = "dollar",
+        value_name = "AMOUNT",
+        conflicts_with = "yen"
+    )]
     dollar: Option<f64>,
 
     /// 円をドルに変換
-    #[arg(short = 'y', long = "yen", value_name = "AMOUNT", conflicts_with = "dollar")]
+    #[arg(
+        short = 'y',
+        long = "yen",
+        value_name = "AMOUNT",
+        conflicts_with = "dollar"
+    )]
     yen: Option<f64>,
 }
 
 #[derive(Deserialize, Debug)]
-struct ExchangeRateResponse {
-    conversion_rates: ConversionRates,
+#[serde(untagged)]
+enum ExchangeRateResponse {
+    // exchangerate-api.com と open.er-api.com 用
+    Standard { conversion_rates: ConversionRates },
+    // 代替フォーマット用
+    Rates { rates: ConversionRates },
 }
 
 #[derive(Deserialize, Debug)]
@@ -33,9 +47,9 @@ fn get_exchange_rate() -> Result<f64, Box<dyn Error>> {
         "https://api.exchangerate-api.com/v4/latest/USD",
         "https://open.er-api.com/v6/latest/USD",
     ];
-    
+
     let mut last_error = None;
-    
+
     for url in urls {
         match try_get_rate(url) {
             Ok(rate) => return Ok(rate),
@@ -45,14 +59,27 @@ fn get_exchange_rate() -> Result<f64, Box<dyn Error>> {
             }
         }
     }
-    
+
     Err(last_error.unwrap_or_else(|| "すべてのAPIエンドポイントが失敗しました".into()))
 }
 
 fn try_get_rate(url: &str) -> Result<f64, Box<dyn Error>> {
     let response = reqwest::blocking::get(url)?;
+
+    // HTTPステータスコードをチェック
+    if !response.status().is_success() {
+        return Err(format!("HTTPエラー: {}", response.status()).into());
+    }
+
     let data: ExchangeRateResponse = response.json()?;
-    Ok(data.conversion_rates.jpy)
+
+    // 両方のAPIフォーマットに対応
+    let rate = match data {
+        ExchangeRateResponse::Standard { conversion_rates } => conversion_rates.jpy,
+        ExchangeRateResponse::Rates { rates } => rates.jpy,
+    };
+
+    Ok(rate)
 }
 
 fn main() {
