@@ -11,6 +11,7 @@ struct Args {
     #[arg(
         short = 'd',
         long = "dollar",
+        visible_aliases = ["usd", "USD", "u"],
         value_name = "AMOUNT",
         conflicts_with = "yen"
     )]
@@ -20,6 +21,7 @@ struct Args {
     #[arg(
         short = 'y',
         long = "yen",
+        visible_aliases = ["jpy", "JPY", "j"],
         value_name = "AMOUNT",
         conflicts_with = "dollar"
     )]

@@ -108,13 +108,19 @@ source ~/.bashrc
 # ヘルプを表示
 ujcon --help
 
-# ドルを円に変換
+# ドルを円に変換（複数のオプション形式をサポート）
 ujcon -d 100
 ujcon --dollar 100
+ujcon --usd 100    # エイリアス
+ujcon --USD 100    # エイリアス
+ujcon --u 100      # エイリアス
 
-# 円をドルに変換
+# 円をドルに変換（複数のオプション形式をサポート）
 ujcon -y 15000
 ujcon --yen 15000
+ujcon --jpy 15000  # エイリアス
+ujcon --JPY 15000  # エイリアス
+ujcon --j 15000    # エイリアス
 ```
 
 ### 実行例
